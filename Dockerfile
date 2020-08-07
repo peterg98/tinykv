@@ -4,6 +4,10 @@ RUN apt-get update
 RUN apt-get install build-essential python-dev nginx -y
 RUN pip install uwsgi Flask
 
-COPY ./nginx.conf /etc/nginx/nginx.conf
+COPY ./cfg/nginx.conf /etc/nginx/nginx.conf
+COPY ./cfg/uwsgi.ini .
+COPY ./cfg/entrypoint.sh .
 
-CMD uwsgi --http-socket :3031 --wsgi-file /src/server.py --callable app --processes 4 --threads 2 --stats :9191
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT [ "/entrypoint.sh" ]
