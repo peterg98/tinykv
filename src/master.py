@@ -36,6 +36,8 @@ class FileCache:
                 return json.loads(value.decode('utf-8'))
             return None
 
+fc = FileCache(os.environ['DB'])
+
 def shard_put(uri):
     pass
 
@@ -54,21 +56,35 @@ def key_to_shard(key):
     highest_num = 0
     shard_url = None
 
-    for v in os.environ['VOLUMES']:
-        string = v + key
+    for s in os.environ['SHARDS'].split(','):
+        shard = s.encode('utf-8')
+        string = shard + key
         md5_int = int.from_bytes(hashlib.md5(string).digest(), byteorder='big', signed=False)
         if md5_int > highest_num:
             highest_num = md5_int
-            shard_url = v
+            shard_url = shard
     return shard_url
     
 
 @master.route('/<key>', methods=['GET', 'PUT'])
 def req_handler(key):
     if request.method == 'PUT':
-        # TODO 
-        return key_to_path(key.encode('utf-8'))
+        key = key.encode('utf-8')
+        if not request.content_length:
+            return 'Empty content', 411
+        # Return error if trying to put an already existing key
+        value = next(request.form.keys())
+        if fc.get(key) is not None:
+            return 'Key %s already exists' % key, 409
+        
+        shard = key_to_shard(key)
+
+        shard_server = 'http://%s%s' % (shard, key_to_path(key))
+        return key_to_path(key)
     elif request.method == 'GET':
-        return "GET request"
+        value = fc.get(key)
+        if value is None:
+            return ('Key with value: %s not found.' % key, 404)
+        # 
     else:
         return 'Unrecognized command'

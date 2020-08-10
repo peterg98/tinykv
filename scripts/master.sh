@@ -1,5 +1,5 @@
 #!/bin/bash -e
-export VOLUMES=${1:-localhost:3001} # default volume=1
+export SHARDS=${1:-localhost:3001}
 export DB=${2:-/tmp/cachedb/}
 export TYPE=master
 

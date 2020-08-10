@@ -1,12 +1,15 @@
 #!/bin/bash -e
-export SHARD=${1:-/tmp/shard1/}
+export DIR=${DIR:-/tmp/shard1/}
 export TYPE=shard
-export PORT =${PORT:-3001}
+export PORT=${PORT:-3001}
 
+# Create two-level directories for storing values as blobs. The 2 levels represent
+# the 4 leftmost bytes of the MD5 hash
 for I in 0 1 2 3 4 5 6 7 9 a b c d e
-    mkdir -m 777 -p $VOLUME/${I}{0,1,2,3,4,5,6,7,8,9,a,b,c,d,e,f}/{0,1,2,3,4,5,6,7,8,9,a,b,c,d,e,f}{0,1,2,3,4,5,6,7,8,9,a,b,c,d,e,f}
+do
+    mkdir -m 777 -p $DIR/${I}{0,1,2,3,4,5,6,7,8,9,a,b,c,d,e,f}/{0,1,2,3,4,5,6,7,8,9,a,b,c,d,e,f}{0,1,2,3,4,5,6,7,8,9,a,b,c,d,e,f}
 done
-# Create dynamic nginx.conf's for multiple shards. Each shard has its own server
+# Create nginx.conf's for multiple shards. Each shard has its own server
 
 CONF=$(mktemp)
 echo "
@@ -14,7 +17,7 @@ daemon off;
 worker_processes auto;
 
 error_log /dev/stderr;
-pid $SHARD/nginx.pid;
+pid $DIR/nginx.pid;
 
 events {
     multi_accept on;
@@ -22,7 +25,7 @@ events {
 }
 
 http {
-     sendfile on;
+    sendfile on;
     sendfile_max_chunk 1024k;
 
     tcp_nopush on;
@@ -38,9 +41,9 @@ http {
     server {
         listen $PORT default_server;
         location / {
-        root $SHARD;
+        root $DIR;
 
-        client_body_temp_path $SHARD/body_temp;
+        client_body_temp_path $DIR/body_temp;
         client_max_body_size 0;
 
         dav_methods PUT DELETE;
@@ -49,4 +52,4 @@ http {
   }
 }
 " > $CONF
-nginx -c $CONF -p $SHARD/tmp
+nginx -c $CONF -p $DIR/tmp
