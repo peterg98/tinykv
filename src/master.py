@@ -2,11 +2,12 @@ from flask import Flask, request
 import lmdb
 import os
 import json
-app = Flask(__name__)
+import hashlib
+import base64
 
-shards = os.env
+master = Flask(__name__)
 
-class Cache:
+class FileCache:
     def __init__(self, cachedir):
         self.db = lmdb.open(cachedir)
 
@@ -38,13 +39,36 @@ class Cache:
 def shard_put(uri):
     pass
 
+def key_to_path(key):
+    md5 = hashlib.md5(key).digest()
+    print(md5)
+    b64key = base64.b64encode(key).decode('utf-8')
 
-@app.route('/<key>', methods=['GET', 'PUT'])
+    return "/%02x/%02x/%s" % (md5[0], md5[1], b64key)
+
+def key_to_shard(key):
+    """Pick the shard for this key by hashing it with the 
+    volume server name. Choose the volume that produces the 
+    largest number. TODO: rebalance shards if more are added
+    (during runtime or not)"""
+    highest_num = 0
+    shard_url = None
+
+    for v in os.environ['VOLUMES']:
+        string = v + key
+        md5_int = int.from_bytes(hashlib.md5(string).digest(), byteorder='big', signed=False)
+        if md5_int > highest_num:
+            highest_num = md5_int
+            shard_url = v
+    return shard_url
+    
+
+@master.route('/<key>', methods=['GET', 'PUT'])
 def req_handler(key):
     if request.method == 'PUT':
         # TODO 
-        pass
+        return key_to_path(key.encode('utf-8'))
     elif request.method == 'GET':
-        pass
+        return "GET request"
     else:
         return 'Unrecognized command'

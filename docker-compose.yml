@@ -3,7 +3,5 @@ version: "3"
 services:
   tinykv:
     build: .
-    volumes: 
-      - "./src:/src"
     ports:
       - "3030:3030"

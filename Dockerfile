@@ -1,14 +1,14 @@
 FROM python:3.8-buster
 
 RUN apt-get update
-RUN apt-get install build-essential python-dev nginx libffi-dev-python -y
+RUN apt-get install build-essential python-dev nginx libffi-dev curl -y
 
 RUN pip install uwsgi Flask lmdb
 
 COPY ./cfg/nginx.conf /etc/nginx/nginx.conf
-COPY ./cfg/uwsgi.ini .
-COPY ./cfg/entrypoint.sh .
+COPY ./scripts /scripts
+COPY ./src /tmp
 
-RUN chmod +x /entrypoint.sh
+RUN chmod +x /scripts/entrypoint.sh
 
-ENTRYPOINT [ "/entrypoint.sh" ]
+ENTRYPOINT [ "/scripts/entrypoint.sh" ]
