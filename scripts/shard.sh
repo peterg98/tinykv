@@ -1,7 +1,7 @@
 #!/bin/bash -e
-export DIR=${DIR:-/tmp/shard1/}
+export DIR=${1:-/tmp/shard1/}
 export TYPE=shard
-export PORT=${PORT:-3001}
+export PORT=${2:-3001}
 
 # Create two-level directories for storing values as blobs. The 2 levels represent
 # the 4 leftmost bytes of the MD5 hash
@@ -17,7 +17,7 @@ echo "
 daemon off;
 worker_processes auto;
 
-error_log /dev/stderr;
+error_log /tmp/errlog.txt;
 pid $DIR/nginx.pid;
 
 events {
