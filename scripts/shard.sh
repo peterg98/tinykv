@@ -10,6 +10,7 @@ do
     mkdir -m 777 -p $DIR/${I}{0,1,2,3,4,5,6,7,8,9,a,b,c,d,e,f}/{0,1,2,3,4,5,6,7,8,9,a,b,c,d,e,f}{0,1,2,3,4,5,6,7,8,9,a,b,c,d,e,f}
 done
 # Create nginx.conf's for multiple shards. Each shard has its own server
+# Each server has a base dir (e.g. /tmp/shard1/) and allows PUT and DELETE requests for files
 
 CONF=$(mktemp)
 echo "

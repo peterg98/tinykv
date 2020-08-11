@@ -13,7 +13,7 @@ class FileCache:
 
     def get(self, key):
         with self.db.begin() as txn:
-            value = txn.get(key)
+            value = txn.get(key.encode('utf-8'))
             if value is None:
                 return None
             return json.loads(value.decode('utf-8'))
@@ -38,13 +38,15 @@ class FileCache:
 
 fc = FileCache(os.environ['DB'])
 
-def shard_put(uri):
+def shard_put(shard_url, data):
     pass
 
+
 def key_to_path(key):
-    md5 = hashlib.md5(key).digest()
-    print(md5)
-    b64key = base64.b64encode(key).decode('utf-8')
+    md5 = hashlib.md5(key.encode('utf-8')).digest()
+    # encode the value into a base64 string as the file name. Inside
+    # the file is the unencoded value
+    b64key = base64.b64encode(key.encode('utf-8')).decode('utf-8')
 
     return "/%02x/%02x/%s" % (md5[0], md5[1], b64key)
 
@@ -57,19 +59,18 @@ def key_to_shard(key):
     shard_url = None
 
     for s in os.environ['SHARDS'].split(','):
-        shard = s.encode('utf-8')
-        string = shard + key
-        md5_int = int.from_bytes(hashlib.md5(string).digest(), byteorder='big', signed=False)
+        string = s + key
+        print(string)
+        md5_int = int.from_bytes(hashlib.md5(string.encode('utf-8')).digest(), byteorder='big', signed=False)
         if md5_int > highest_num:
             highest_num = md5_int
-            shard_url = shard
+            shard_url = s
     return shard_url
     
 
 @master.route('/<key>', methods=['GET', 'PUT'])
 def req_handler(key):
     if request.method == 'PUT':
-        key = key.encode('utf-8')
         if not request.content_length:
             return 'Empty content', 411
         # Return error if trying to put an already existing key
@@ -80,6 +81,17 @@ def req_handler(key):
         shard = key_to_shard(key)
 
         shard_server = 'http://%s%s' % (shard, key_to_path(key))
+
+        # put into remote shard first
+        if not shard_put(shard_server, value):
+            return 'Writing to shard failed.', 500
+
+        # do local write to lmdb after remote PUT succeeds
+        #
+        # Note: It is possible for remote shard PUT to succeed and 
+        # local lmdb write to fail. This only causes an orphan file in the shard,
+        # which can be pruned periodically by comparing local db to shards
+        if not fc.put(key, {'shard': shard, 'size': })
         return key_to_path(key)
     elif request.method == 'GET':
         value = fc.get(key)
