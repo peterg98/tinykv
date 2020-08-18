@@ -9,6 +9,6 @@ COPY ./cfg/nginx.conf /etc/nginx/nginx.conf
 COPY ./scripts /scripts
 COPY ./src /tmp
 
-RUN chmod +x /scripts/entrypoint.sh
+RUN chmod -R +x /scripts/
 
 ENTRYPOINT [ "/scripts/entrypoint.sh" ]
