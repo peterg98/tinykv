@@ -118,5 +118,16 @@ def req_handler(key):
         # Redirect to appropriate path on shard
         shard_url = 'http://%s%s' % (value['shard'], key_to_path(key))
         return redirect(shard_url)
+    elif request.method == 'DELETE':
+        value = fc.get(key)
+        if value is None:
+            return ('Key %s not found on file cache. Unable to proceed.' % key)
+        shard_server = 'http://%s%s' % (key_to_shard(key), key_to_path(key))
+
+        if shard_delete(shard_server):
+            return 'Delete Succeeded', 204
+        else:
+            return 'Unable to delete file on disk.', 500
+        
     else:
         return 'Unrecognized command'
