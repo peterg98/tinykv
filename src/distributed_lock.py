@@ -4,6 +4,7 @@
 
 from multiprocessing import Lock
 from multiprocessing.managers import BaseManager
+from shared import LOCK_MGR_PORT, LOCK_MGR_PWD
 import time
 
 lock = Lock()
@@ -25,8 +26,9 @@ def release_key(key):
         return False
     
 if __name__ == '__main__':
-    manager = BaseManager(('', 42875), b'tinykvmgr')
+    manager = BaseManager(('', LOCK_MGR_PORT), LOCK_MGR_PWD)
     manager.register('get_key', get_key)
     manager.register('release_key', release_key)
     server = manager.get_server()
+    print('lock service running on port %d' % LOCK_MGR_PORT)
     server.serve_forever()

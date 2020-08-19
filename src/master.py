@@ -1,4 +1,6 @@
 from flask import Flask, request, redirect
+from multiprocessing.managers import BaseManager
+from tmp.shared import LOCK_MGR_PORT, LOCK_MGR_PWD
 import lmdb
 import os
 import json
@@ -82,7 +84,7 @@ def key_to_shard(key):
     return shard_url
     
 
-@master.route('/<key>', methods=['GET', 'PUT'])
+@master.route('/<key>', methods=['GET', 'PUT', 'DELETE'])
 def req_handler(key):
     if request.method == 'PUT':
         if not request.content_length:
@@ -96,21 +98,32 @@ def req_handler(key):
 
         shard_server = 'http://%s%s' % (shard, key_to_path(key))
         # put into remote shard first
-        if not shard_put(shard_server, value):
-            return 'Writing to shard failed.', 500
+        manager = BaseManager(('', LOCK_MGR_PORT), LOCK_MGR_PWD)
+        manager.register('get_key')
+        manager.register('release_key')
+        manager.connect()
+        lock = manager.get_key(key)
 
-        # do local write to lmdb after remote PUT succeeds
-        #
-        # Note: It is possible for remote shard PUT to succeed and 
-        # local lmdb write to fail. This only causes an orphan file in the shard,
-        # which can be pruned periodically by comparing local db to shards
+        # Let's discard concurrent PUTs and DELETEs for now
+        if not lock:
+            return 'Concurrent PUT or DELETE request for key %s. Discarding.' % key, 500
+        try:
+            if not shard_put(shard_server, value):
+                return 'Writing to shard failed.', 500
+            # do local write to lmdb after remote PUT succeeds
+            #
+            # Note: It is possible for remote shard PUT to succeed and 
+            # local lmdb write to fail. This only causes an orphan file in the shard,
+            # which can be pruned periodically by comparing local db to shards
 
-        # TODO: implement locks on keys
-        if not fc.put(key, {'shard': shard}):
-            shard_delete(shard_server)
-            return 'Race condition', 409
+            # TODO: implement locks on keys
+            if not fc.put(key, {'shard': shard}):
+                shard_delete(shard_server)
+                return 'Race condition', 409
 
-        return 'Transaction successful. Value %s is stored at %s' % (value, shard_server), 201
+            return 'Transaction successful. Value %s is stored at %s' % (value, shard_server), 201
+        finally:
+            manager.release_key(key)
     elif request.method == 'GET':
         value = fc.get(key)
         if value is None:
@@ -122,12 +135,24 @@ def req_handler(key):
         value = fc.get(key)
         if value is None:
             return ('Key %s not found on file cache. Unable to proceed.' % key)
-        shard_server = 'http://%s%s' % (key_to_shard(key), key_to_path(key))
+        manager = BaseManager(('', LOCK_MGR_PORT), LOCK_MGR_PWD)
+        manager.register('get_key')
+        manager.register('release_key')
+        manager.connect()
+        lock = manager.get_key(key)
 
-        if shard_delete(shard_server):
-            return 'Delete Succeeded', 204
-        else:
-            return 'Unable to delete file on disk.', 500
+        # Let's discard concurrent PUTs and DELETEs for now
+        if not lock:
+            return 'Concurrent PUT or DELETE request for key %s. Discarding.' % key, 500
+        try:
+            shard_server = 'http://%s%s' % (key_to_shard(key), key_to_path(key))
+
+            if shard_delete(shard_server):
+                return 'Delete Succeeded', 204
+            else:
+                return 'Unable to delete file on disk.', 500
+        finally:
+            manager.release_key(key)
         
     else:
         return 'Unrecognized command'

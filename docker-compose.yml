@@ -4,4 +4,4 @@ services:
   tinykv:
     build: .
     ports:
-      - "3030:3030"
+      - "3000-3002:3000-3002"
