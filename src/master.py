@@ -67,7 +67,7 @@ def key_to_path(key):
 
 def key_to_shard(key):
     """Pick the shard for this key by hashing it with the 
-    volume server name. Choose the volume that produces the 
+    shard server name. Choose the shard that produces the 
     largest number. TODO: rebalance shards if more are added
     (during runtime or not)"""
     highest_num = 0
