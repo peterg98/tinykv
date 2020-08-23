@@ -33,7 +33,7 @@ class FileCache:
     def delete(self, key):
         with self.db.begin(write=True) as txn:
             value = txn.get(key.encode('utf-8'))
-            if value is None:
+            if value is not None:
                 txn.delete(key.encode('utf-8'))
                 # Return the deleted value
                 return json.loads(value.decode('utf-8'))
@@ -146,6 +146,9 @@ def req_handler(key):
             return 'Concurrent PUT or DELETE request for key %s. Discarding.' % key, 500
         try:
             shard_server = 'http://%s%s' % (key_to_shard(key), key_to_path(key))
+
+            if not fc.delete(key):
+                return 'Unable to delete file on cache', 500
 
             if shard_delete(shard_server):
                 return 'Delete Succeeded', 204
