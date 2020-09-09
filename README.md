@@ -19,16 +19,24 @@ Haven't tested rebalancing yet but it involves getting a snapshot of all the cur
 
 In `docker-compose.yml`, expose the port range for both the master and shard servers.
 
-```
+
+
 Put 'world' with key 'hello':
 
-curl -L -X PUT -d world localhost:3000/hello # Value world is stored at http://localhost:3001/d4/a2/aM2Xcl
+`curl -L -X PUT -d world localhost:3000/hello # Returns: Transaction Successful. Value world is stored at http://localhost:3001/5d/41/aGVsbG8=`
+
+Put 'bar' wtih key 'foo':
+
+`curl -L -X PUT -d bar localhost:3000/foo # Returns: Transaction Successful. Value bar is stored at http://localhost:3002/ac/bd/Zm9v`
 
 Get value with key 'hello':
 
-curl -L localhost:3000/hello # world
+`curl -L localhost:3000/hello # Returns: World`
 
 Delete value with key 'hello':
 
-curl -L -X DELETE localhost/hello # Delete succeeded.
-```
+`curl -L -X DELETE localhost:3000/hello # Returns: Delete succeeded.`
+
+Get value with key 'hello':
+
+`curl -L localhost:3000/hello # Returns: Key with value: 'hello' not found.`
